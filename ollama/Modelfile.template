@@ -1,0 +1,16 @@
+# Copy your GGUF to ./ollama/models/ and update the FROM path accordingly.
+# Then create the model:
+#   ollama create qwen15b-cloudqa -f ollama/Modelfile
+
+FROM ./models/qwen15b_cloudqa.q4_k_m.gguf
+
+# Inference defaults (tweak per your demo)
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+PARAMETER num_ctx 2048
+
+SYSTEM """
+You are a senior platform engineer.
+Answer clearly and concretely.
+Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults.
+"""

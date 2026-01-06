@@ -1,0 +1,89 @@
+run:
+  task: sft   # supervised fine-tuning (instruction tuning)
+  mode: lora
+  run_name: sft_lora_qwen15b_cpu_cloudqa
+
+compute:
+  device: cpu
+  dtype: float32
+  num_threads: 16
+  interop_threads: 2
+
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  init: pretrained
+  max_length: 256
+
+# Instruction/Q&A datasets. These already have prompt/response fields.
+data:
+  streaming: true
+  shuffle_buffer: 2000
+  system_prompt: |
+    You are a senior platform engineer. Answer clearly and concretely.
+    Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults.
+
+  sft_sources:
+    # DevOps reasoning-traces style dataset (good for SRE/DevOps)
+    # Fields verified on the dataset viewer.
+    - name: deepfabric_devops_reasoning_traces
+      dataset_name: alwaysfurther/deepfabric-devops-reasoning-traces
+      dataset_config: null
+      split: train
+      prompt_field: question
+      response_field: final_answer
+      weight: 0.7
+
+    - name: cncf_qa
+      dataset_name: Kubermatic/cncf-question-and-answer-dataset-for-llm-training
+      dataset_config: null
+      split: train
+      prompt_field: Question
+      response_field: Answer
+      weight: 1.0
+
+    - name: devops_llm
+      dataset_name: ahmedgongi/Devops_LLM
+      dataset_config: null
+      split: train
+      prompt_field: Instruction
+      input_field: Prompt
+      response_field: Response
+      weight: 0.5
+
+    # Java instruction dataset for quick, impressive demos
+    - name: java_alpaca
+      dataset_name: amztheory/alpaca-code-java
+      dataset_config: null
+      split: train
+      prompt_field: instruction
+      response_field: response
+      weight: 0.6
+
+    # Optional: StackOverflow-like sets can be huge/noisy and may have licensing constraints.
+    # Enable only if you understand the dataset terms.
+    # - name: stackoverflow_k8s
+    #   dataset_name: <your_stackoverflow_dataset>
+    #   dataset_config: null
+    #   split: train
+    #   prompt_field: question
+    #   response_field: answer
+    #   weight: 0.3
+
+train:
+  output_dir: outputs
+  max_steps: 600
+  per_device_batch_size: 1
+  grad_accum_steps: 4
+  learning_rate: 2.0e-4
+  weight_decay: 0.0
+  warmup_steps: 50
+  max_grad_norm: 1.0
+  log_every: 5
+  save_every: 50
+  seed: 123
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: ["q_proj", "v_proj"]

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwen15b-cpu-sft"
+version = "0.1.0"
+description = "CPU-only LoRA SFT on Qwen2.5-1.5B-Instruct with streaming datasets + export to Ollama (GGUF)"
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+
+dependencies = [
+  "torch>=2.2.0",
+  "transformers>=4.37.0",
+  "datasets>=2.20.0",
+  "peft>=0.11.0",
+  "safetensors>=0.4.0",
+  "huggingface_hub>=0.23.0",
+  "pyyaml>=6.0.1",
+  "tqdm>=4.66.0",
+  "requests>=2.31.0",
+  "streamlit>=1.36.0",
+  "psutil>=5.9.8",
+]
+
+[project.optional-dependencies]
+perf = [
+  "py-spy>=0.3.14",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
