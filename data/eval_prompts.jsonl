@@ -1,0 +1,8 @@
+{"prompt": "What is a StatefulSet and how is it different from a Deployment?", "expect_keywords": ["stable", "identity", "persistent", "volume"]}
+{"prompt": "How do I give a pod permissions to read from DynamoDB on EKS?", "expect_keywords": ["iam", "role", "service account", "pod identity"]}
+{"prompt": "A pod shows OOMKilled. What should I do?", "expect_keywords": ["memory", "limit", "137"]}
+{"prompt": "What is the benefit of merging a LoRA adapter into the base model?", "expect_keywords": ["merge", "adapter", "single", "latency"]}
+{"prompt": "Which GGUF quantization should I use for CPU inference?", "expect_keywords": ["q4_k_m", "q5", "memory"]}
+{"prompt": "How do I drain a node before maintenance?", "expect_keywords": ["kubectl drain", "cordon", "poddisruptionbudget"]}
+{"prompt": "What metrics matter when load testing an LLM endpoint?", "expect_keywords": ["ttft", "tokens", "latency", "concurrency"]}
+{"prompt": "How do I keep secrets out of Git for Kubernetes apps?", "expect_keywords": ["secrets manager", "external secrets", "kms"]}

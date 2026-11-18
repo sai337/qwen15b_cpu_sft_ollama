@@ -29,6 +29,15 @@ def load_yaml(path: str) -> Dict[str, Any]:
     if task not in {"sft", "cpt"}:
         raise ValueError("run.task must be one of: sft, cpt")
 
+    key = "sft_sources" if task == "sft" else "text_sources"
+    if not cfg["data"].get(key):
+        raise ValueError(f"data.{key} must list at least one source for run.task={task}")
+    for s in cfg["data"][key]:
+        need = ["name", "dataset_name"] + (["prompt_field", "response_field"] if task == "sft" else [])
+        miss = [k for k in need if k not in s]
+        if miss:
+            raise ValueError(f"data.{key} entry {s.get('name', '?')} is missing {miss}")
+
     if "base_model" not in cfg["model"]:
         raise ValueError("model.base_model is required")
 

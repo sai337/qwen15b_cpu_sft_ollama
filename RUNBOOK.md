@@ -2,6 +2,9 @@
 
 This is written for a beginner team but assumes you can SSH/SSM into an Amazon Linux box.
 
+> **Fastest path:** after sections 2–4, `./scripts/run_pipeline.sh <config> <ollama-model-name>` runs sections 6–10 in one go
+> (train → merge → GGUF → quantize → `ollama create` → smoke test). Run it under `nohup` on SSM. The sections below are the manual equivalent.
+
 ## 0) Hard constraints (be honest about them)
 
 - **CPU-only training on 1.5B params is slow.** You are not "training from scratch"; you are **fine-tuning** an existing foundation model with a small number of trainable parameters (LoRA).
@@ -36,8 +39,8 @@ sudo yum -y install htop
 ## 3) Python environment
 
 ```bash
-git clone <your repo location>
-cd qwen15b_cpu_sft_ollama_demo
+git clone https://github.com/sai337/qwen15b_cpu_sft_ollama.git
+cd qwen15b_cpu_sft_ollama
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -46,7 +49,8 @@ pip install --upgrade pip
 pip install --index-url https://download.pytorch.org/whl/cpu torch
 
 # Project deps
-pip install -e .
+pip install -e ".[dev]"
+pytest -q   # 15 offline tests, ~1 min
 ```
 
 Verify:
@@ -81,6 +85,11 @@ Key knobs:
 - `train.max_steps`: your real progress bar.
 - `train.grad_accum_steps`: increases effective batch size without RAM spikes.
 - `lora.target_modules`: controls which layers get LoRA adapters.
+
+### A2) Your own data (local JSONL)
+
+`configs/sft_lora_local_jsonl.yaml` reads `data/sample_sft.jsonl` (`{"question": ..., "answer": ...}` per line).
+Replace it with your data; keep a few held-out questions in `data/eval_prompts.jsonl` for section 10.3.
 
 ### B) Domain adaptation (CPT) config (optional)
 
@@ -196,7 +205,7 @@ python scripts/merge_adapter.py \
 ### 9.2 Convert merged model -> GGUF
 
 ```bash
-git clone https://github.com/ggerganov/llama.cpp.git llama.cpp
+git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llama.cpp
 
 ./scripts/export_gguf.sh merged/qwen15b_cloudqa_merged gguf/qwen15b_cloudqa.f16.gguf
 ```
@@ -230,6 +239,14 @@ curl http://localhost:11434/api/generate -d '{"model":"qwen15b-cloudqa","prompt"
 
 UI:
 - `http://<server-ip>:8501`
+
+### 10.3 Compare base vs fine-tuned
+
+```bash
+docker exec ollama ollama pull qwen2.5:1.5b-instruct
+python scripts/eval_compare.py --models qwen2.5:1.5b-instruct qwen15b-cloudqa --out reports/eval
+cat reports/eval/report.md
+```
 
 ## 11) Troubleshooting
 

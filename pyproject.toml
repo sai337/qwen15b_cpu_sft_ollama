@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qwen15b-cpu-sft"
-version = "0.1.0"
+version = "0.2.0"
 description = "CPU-only LoRA SFT on Qwen2.5-1.5B-Instruct with streaming datasets + export to Ollama (GGUF)"
 requires-python = ">=3.12"
 readme = "README.md"
@@ -12,9 +12,9 @@ license = {text = "Apache-2.0"}
 
 dependencies = [
   "torch>=2.2.0",
-  "transformers>=4.37.0",
+  "transformers>=4.45.0",
   "datasets>=2.20.0",
-  "peft>=0.11.0",
+  "peft>=0.13.0",
   "safetensors>=0.4.0",
   "huggingface_hub>=0.23.0",
   "pyyaml>=6.0.1",
@@ -25,6 +25,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "gguf>=0.10.0",
+  "sentencepiece>=0.2.0",
+  "protobuf>=4.25",
+]
 perf = [
   "py-spy>=0.3.14",
 ]
@@ -34,3 +40,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::FutureWarning"]

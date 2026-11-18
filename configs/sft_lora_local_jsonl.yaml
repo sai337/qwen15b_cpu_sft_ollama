@@ -1,0 +1,53 @@
+# Fine-tune on YOUR OWN data in a local JSONL file (no Hugging Face dataset needed).
+# Each line: {"question": "...", "answer": "..."}  -- rename the fields below if yours differ.
+# Swap data/sample_sft.jsonl for e.g. your runbooks / NOC incident Q&A.
+run:
+  task: sft
+  mode: lora
+  run_name: sft_lora_qwen15b_local
+
+compute:
+  device: cpu          # "auto" uses a GPU if one is visible
+  dtype: float32       # bfloat16 halves RAM on CPUs with AVX512-BF16/AMX (e.g. m7i)
+  num_threads: 16
+  interop_threads: 2
+
+model:
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  max_length: 512
+
+data:
+  streaming: true
+  shuffle_buffer: 100
+  min_response_tokens: 16
+  system_prompt: |
+    You are a senior platform engineer. Answer clearly and concretely.
+    Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults.
+  sft_sources:
+    - name: local_qa
+      dataset_name: json            # HF "json" builder reads local files
+      data_files: data/sample_sft.jsonl
+      split: train
+      prompt_field: question
+      response_field: answer
+      weight: 1.0
+
+train:
+  output_dir: outputs
+  max_steps: 150         # 20 rows x ~4 epochs at grad_accum 4 -> small data, small steps
+  per_device_batch_size: 1
+  grad_accum_steps: 4
+  learning_rate: 2.0e-4
+  weight_decay: 0.0
+  warmup_steps: 10
+  max_grad_norm: 1.0
+  log_every: 5
+  save_every: 50
+  seed: 123
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  # All linear projections: better quality than q/v only, still <2% of params.
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
