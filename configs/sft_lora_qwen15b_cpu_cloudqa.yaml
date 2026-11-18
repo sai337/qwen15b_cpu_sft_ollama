@@ -12,12 +12,13 @@ compute:
 model:
   base_model: Qwen/Qwen2.5-1.5B-Instruct
   init: pretrained
-  max_length: 256
+  max_length: 256   # long reasoning-trace samples get skipped/truncated; see status.json data_stats
 
 # Instruction/Q&A datasets. These already have prompt/response fields.
 data:
   streaming: true
   shuffle_buffer: 2000
+  min_response_tokens: 16   # skip samples whose prompt leaves <16 tokens for the answer (prevents NaN loss)
   system_prompt: |
     You are a senior platform engineer. Answer clearly and concretely.
     Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults.
@@ -46,7 +47,7 @@ data:
       dataset_config: null
       split: train
       prompt_field: Instruction
-      input_field: Prompt
+      input_field: Prompt     # appended to the instruction as context
       response_field: Response
       weight: 0.5
 

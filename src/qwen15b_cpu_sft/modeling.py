@@ -1,48 +1,62 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Any, List
 
 import torch
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+DTYPES = {
+    "float32": torch.float32,
+    "bfloat16": torch.bfloat16,
+    "float16": torch.float16,
+}
+
 
 @dataclass
 class ModelBundle:
     model: torch.nn.Module
-    tokenizer: any
+    tokenizer: Any
 
 
 def set_cpu_threads(num_threads: int, interop_threads: int = 2) -> None:
-    # Keep this before any significant torch work.
-    num_threads = int(num_threads) if num_threads else 0
-    interop_threads = int(interop_threads) if interop_threads else 0
+    # Keep this before any significant torch work (interop threads can only be set once).
+    num_threads = int(num_threads or 0)
+    interop_threads = int(interop_threads or 0)
     if num_threads > 0:
         torch.set_num_threads(num_threads)
     if interop_threads > 0:
-        torch.set_num_interop_threads(interop_threads)
+        try:
+            torch.set_num_interop_threads(interop_threads)
+        except RuntimeError:
+            pass  # already set in this process (e.g. tests calling train() twice)
+
+
+def dtype_kwarg() -> str:
+    """transformers>=4.56 renamed torch_dtype -> dtype (v5 warns on the old name)."""
+    import transformers
+
+    major, minor = (int(x) for x in transformers.__version__.split(".")[:2])
+    return "dtype" if (major, minor) >= (4, 56) else "torch_dtype"
+
+
+def resolve_device(device: str) -> torch.device:
+    device = (device or "cpu").lower()
+    if device == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(device)
 
 
 def load_bundle(model_id: str, dtype: str = "float32") -> ModelBundle:
-    # Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Model
-    torch_dtype = {
-        "float32": torch.float32,
-        "bfloat16": torch.bfloat16,
-        "float16": torch.float16,
-        "auto": None,
-    }.get(dtype, torch.float32)
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        torch_dtype=torch_dtype,
-        low_cpu_mem_usage=True,
-    )
+    kwargs = {"low_cpu_mem_usage": True}
+    if dtype != "auto":
+        kwargs[dtype_kwarg()] = DTYPES.get(dtype, torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
     model.train()
     return ModelBundle(model=model, tokenizer=tokenizer)
 

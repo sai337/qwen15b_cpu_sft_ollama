@@ -1,16 +1,35 @@
-# Copy your GGUF to ./ollama/models/ and update the FROM path accordingly.
-# Then create the model:
-#   ollama create qwen15b-cloudqa -f ollama/Modelfile
+# Ollama Modelfile for a fine-tuned Qwen2.5 GGUF.
+# scripts/run_pipeline.sh writes ollama/Modelfile from this template automatically.
+# Manual use: copy your GGUF to ./ollama/models/, copy this file to ./ollama/Modelfile, then
+#   docker exec -it ollama ollama create qwen15b-cloudqa -f /models/Modelfile   (docker)
+#   ollama create qwen15b-cloudqa -f ollama/Modelfile                          (native)
 
 FROM ./models/qwen15b_cloudqa.q4_k_m.gguf
 
-# Inference defaults (tweak per your demo)
+# Qwen2.5 uses ChatML. The model was trained on exactly this format, so set it explicitly
+# instead of relying on Ollama's template auto-detection.
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 }}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ .Content }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- end }}
+{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
+{{ end }}
+{{- end }}"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
 PARAMETER temperature 0.2
 PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.05
 PARAMETER num_ctx 2048
 
-SYSTEM """
-You are a senior platform engineer.
-Answer clearly and concretely.
-Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults.
-"""
+# Keep this identical to data.system_prompt in the SFT config: the model learned with it.
+SYSTEM """You are a senior platform engineer. Answer clearly and concretely.
+Prefer AWS/EKS/Kubernetes/CNCF/GCP practical guidance and safe defaults."""

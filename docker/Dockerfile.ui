@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir streamlit==1.36.0 requests==2.31.0
+RUN pip install --no-cache-dir streamlit==1.40.2 requests==2.32.3
 
 COPY ui/streamlit_app.py /app/streamlit_app.py
 

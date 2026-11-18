@@ -1,47 +1,62 @@
 import json
 import os
+
 import requests
 import streamlit as st
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-MODEL = os.environ.get("OLLAMA_MODEL", "qwen15b-cloudqa")
+DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "qwen15b-cloudqa")
 
-st.set_page_config(page_title=f"Ollama Chat - {MODEL}")
-st.title(f"Chat: {MODEL}")
+
+@st.cache_data(ttl=15)
+def list_models() -> list[str]:
+    try:
+        r = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
+        r.raise_for_status()
+        return sorted(m["name"] for m in r.json().get("models", []))
+    except Exception:
+        return []
+
+
+st.set_page_config(page_title="Fine-tuned Qwen chat")
+
+with st.sidebar:
+    models = list_models()
+    if not models:
+        st.error(f"No models found at {OLLAMA_HOST}. Is Ollama running and the model created?")
+        models = [DEFAULT_MODEL]
+    default_idx = next((i for i, m in enumerate(models) if m.split(":")[0] == DEFAULT_MODEL), 0)
+    model = st.selectbox("Model", models, index=default_idx, help="Switch to the base model to compare answers.")
+    system = st.text_area("System prompt override", "", help="Leave empty to use the SYSTEM from the Modelfile (what the model was trained with).")
+    temperature = st.slider("Temperature", 0.0, 1.5, 0.2, 0.1)
+    if st.button("Clear chat"):
+        st.session_state.messages = []
+
+st.title(f"Chat: {model}")
 st.caption(f"Ollama: {OLLAMA_HOST}")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "system", "content": "You are a senior platform engineer. Answer..."}
-    ]
-
+st.session_state.setdefault("messages", [])
 for m in st.session_state.messages:
-    if m["role"] == "system":
-        continue
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-user_text = st.chat_input("Ask something about AWS/EKS/Kubernetes/GCP/Java...")
-
+user_text = st.chat_input("Ask something about AWS/EKS/Kubernetes/GCP...")
 if user_text:
     st.session_state.messages.append({"role": "user", "content": user_text})
     with st.chat_message("user"):
         st.markdown(user_text)
 
+    msgs = ([{"role": "system", "content": system}] if system.strip() else []) + st.session_state.messages
     with st.chat_message("assistant"):
         placeholder = st.empty()
         buf = ""
-
-        # Ollama chat API (streaming)
-        url = f"{OLLAMA_HOST}/api/chat"
-        payload = {
-            "model": MODEL,
-            "messages": st.session_state.messages,
-            "stream": True,
-        }
-
         try:
-            with requests.post(url, json=payload, stream=True, timeout=600) as r:
+            with requests.post(
+                f"{OLLAMA_HOST}/api/chat",
+                json={"model": model, "messages": msgs, "stream": True, "options": {"temperature": temperature}},
+                stream=True,
+                timeout=600,
+            ) as r:
                 r.raise_for_status()
                 for line in r.iter_lines(decode_unicode=True):
                     if not line:
@@ -56,5 +71,5 @@ if user_text:
                         placeholder.markdown(buf)
         except Exception as e:
             placeholder.markdown(f"**Error talking to Ollama:** {e}")
-
-    st.session_state.messages.append({"role": "assistant", "content": buf})
+    if buf:
+        st.session_state.messages.append({"role": "assistant", "content": buf})
